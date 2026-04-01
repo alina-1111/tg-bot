@@ -1,19 +1,24 @@
 import telebot
 from telebot import types
 import psycopg2
+import os
 
 
 # ================== БАЗА ДАННЫХ ==================
 class DatabaseManager:
     def __init__(self):
-        self.conn = psycopg2.connect(
-            dbname="shoes",
-            user="postgres",
-            password="12345",  # поменяй на свой пароль
-            host="localhost",
-            port="5432"
-        )
-        self.cursor = self.conn.cursor()
+        try:
+            self.conn = psycopg2.connect(
+                dbname=os.getenv("DB_NAME"),
+                user=os.getenv("DB_USER"),
+                password=os.getenv("DB_PASSWORD"),
+                host=os.getenv("DB_HOST"),
+                port=os.getenv("DB_PORT")
+            )
+            self.cursor = self.conn.cursor()
+            print("✅ Подключение к БД успешно")
+        except Exception as e:
+            print("❌ Ошибка подключения к БД:", e)
 
     def get_models(self):
         self.cursor.execute("SELECT id, name FROM shoes")
@@ -51,7 +56,7 @@ class DatabaseManager:
 
 
 # ================== БОТ ==================
-TOKEN = '8380279768:AAEPKZUoqBB78R8eH-sfXBlJuCLszv2F5Jc'
+TOKEN = os.getenv("TOKEN")  # теперь из Render
 ADMIN_ID = 880769222
 
 bot = telebot.TeleBot(TOKEN)
@@ -100,8 +105,12 @@ def select_model(message, models):
         return
 
     index = int(message.text) - 1
-    model = models[index]
 
+    if index < 0 or index >= len(models):
+        bot.send_message(message.chat.id, "Неверный номер")
+        return
+
+    model = models[index]
     details = db.get_model_details(model[0])
 
     if details:
@@ -132,7 +141,8 @@ def process_delivery(message):
         shoe_id, size_id, store_id, qty = map(int, message.text.split())
         db.add_delivery(shoe_id, size_id, store_id, qty)
         bot.send_message(message.chat.id, "✅ Поступление добавлено")
-    except:
+    except Exception as e:
+        print(e)
         bot.send_message(message.chat.id, "Ошибка ввода ❌")
 
 
@@ -152,7 +162,8 @@ def process_sale(message):
         shoe_id, size_id, store_id, qty = map(int, message.text.split())
         db.add_sale(shoe_id, size_id, store_id, qty)
         bot.send_message(message.chat.id, "✅ Продажа добавлена")
-    except:
+    except Exception as e:
+        print(e)
         bot.send_message(message.chat.id, "Ошибка ❌")
 
 
@@ -172,4 +183,5 @@ def stock(message):
 
 
 # ================== ЗАПУСК ==================
+print("🚀 Бот запущен...")
 bot.infinity_polling()
