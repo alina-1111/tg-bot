@@ -455,14 +455,16 @@ def show_by_date(message):
 if __name__ == "__main__":
     import time
 
-    while True:
-        try:
-            print("🚀 Бот запускается...")
-            bot.remove_webhook()
-            time.sleep(2)
+    print("🚀 Бот запускается...")
 
-            bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
+    bot.remove_webhook()
+    time.sleep(2)
 
-        except Exception as e:
-            print("Ошибка polling:", e)
-            time.sleep(5)
+    # 🔥 СБРОС ОЧЕРЕДИ (очень важно для Render)
+    try:
+        bot.get_updates(offset=-1)
+    except:
+        pass
+
+    bot.infinity_polling(skip_pending=True)
+    
