@@ -317,7 +317,8 @@ def stock(message):
 if __name__ == "__main__":
     print("🚀 Бот запущен...")
 
-    # ✅ всё должно быть ВНУТРИ if
+    bot.remove_webhook()  # 🔥 обязательно
+
     threading.Thread(target=run_web).start()
 
     bot.infinity_polling()
