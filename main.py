@@ -92,6 +92,41 @@ class DatabaseManager:
         result = self.cursor.fetchone()
 
         return result[0] if result else None
+
+    def get_deliveries_full(self):
+        self.cursor.execute("""
+        SELECT 
+            d.id,
+            s.name AS store,
+            sh.brand,
+            sh.category,
+            sh.name,
+            sz.size_value,
+            d.quantity,
+            d.created_at
+        FROM deliveries d
+        JOIN stores s ON d.store_id = s.id
+        JOIN shoes sh ON d.shoe_id = sh.id
+        JOIN sizes sz ON d.size_id = sz.id
+        ORDER BY d.created_at DESC
+        LIMIT 20
+        """)
+        return self.cursor.fetchall()
+
+    def get_deliveries_by_store(self, store_id):
+        self.cursor.execute("""
+        SELECT 
+            s.name, sh.brand, sh.category, sh.name,
+            sz.size_value, d.quantity, d.created_at
+        FROM deliveries d
+        JOIN stores s ON d.store_id = s.id
+        JOIN shoes sh ON d.shoe_id = sh.id
+        JOIN sizes sz ON d.size_id = sz.id
+        WHERE s.id = %s
+        ORDER BY d.created_at DESC
+        """, (store_id,))
+        return self.cursor.fetchall()
+
 # ================== БОТ ==================
 
 
@@ -124,6 +159,7 @@ def admin_menu(message):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     markup.add('Добавить поступление', 'Добавить продажу')
     markup.add('Смотреть остатки')
+    markup.add('Смотреть поступления')  # 👈 ДОБАВЬ
     bot.send_message(message.chat.id, "Админ-панель:", reply_markup=markup)
 
 # ================== КАТАЛОГ ==================
@@ -327,6 +363,98 @@ def stock(message):
 
     bot.send_message(message.chat.id, text)
 
+
+@bot.message_handler(func=lambda m: m.text == 'Смотреть поступления')
+def view_deliveries(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add('Последние', 'По магазину')
+    markup.add('По модели', 'По дате')
+    markup.add('В меню')
+
+    bot.send_message(message.chat.id, "Выбери фильтр:", reply_markup=markup)
+
+
+@bot.message_handler(func=lambda m: m.text == 'Последние')
+def show_last_deliveries(message):
+    rows = db.get_deliveries_full()
+
+    text = "📦 Последние поступления:\n\n"
+
+    for r in rows:
+        text += (
+            f"🏪 {r[1]}\n"
+            f"👟 {r[2]} | {r[3]} | {r[4]}\n"
+            f"📏 Размер: {r[5]}\n"
+            f"📦 Кол-во: {r[6]}\n"
+            f"📅 {r[7]}\n\n"
+        )
+
+    bot.send_message(message.chat.id, text)
+
+
+@bot.message_handler(func=lambda m: m.text == 'По магазину')
+def filter_store(message):
+    stores = db.get_stores()
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    store_dict = {s[1]: s[0] for s in stores}
+
+    for name in store_dict:
+        markup.add(name)
+
+    msg = bot.send_message(message.chat.id, "Выбери магазин:", reply_markup=markup)
+    bot.register_next_step_handler(msg, show_by_store, store_dict)
+
+
+def show_by_store(message, store_dict):
+    if message.text not in store_dict:
+        return
+
+    store_id = store_dict[message.text]
+    rows = db.get_deliveries_by_store(store_id)
+
+    text = f"📦 Поступления ({message.text}):\n\n"
+
+    for r in rows:
+        text += (
+            f"👟 {r[1]} | {r[2]} | {r[3]}\n"
+            f"📏 {r[4]} | 📦 {r[5]}\n"
+            f"📅 {r[6]}\n\n"
+        )
+
+    bot.send_message(message.chat.id, text)
+
+
+@bot.message_handler(func=lambda m: m.text == 'По дате')
+def filter_date(message):
+    msg = bot.send_message(message.chat.id, "Введи дату (YYYY-MM-DD):")
+    bot.register_next_step_handler(msg, show_by_date)
+
+
+def show_by_date(message):
+    date = message.text
+
+    db.cursor.execute("""
+    SELECT s.name, sh.brand, sh.category, sh.name,
+           sz.size_value, d.quantity
+    FROM deliveries d
+    JOIN stores s ON d.store_id = s.id
+    JOIN shoes sh ON d.shoe_id = sh.id
+    JOIN sizes sz ON d.size_id = sz.id
+    WHERE DATE(d.created_at) = %s
+    """, (date,))
+
+    rows = db.cursor.fetchall()
+
+    text = f"📅 Поступления за {date}:\n\n"
+
+    for r in rows:
+        text += f"{r[0]} | {r[1]} {r[3]} | {r[4]} | {r[5]}\n"
+
+    bot.send_message(message.chat.id, text)
 # ================== ЗАПУСК ==================
 
 
