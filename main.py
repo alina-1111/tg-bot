@@ -82,6 +82,16 @@ class DatabaseManager:
     def get_stores(self):
         self.cursor.execute("SELECT id, name FROM stores")
         return self.cursor.fetchall()
+
+    def get_size_id(self, size_value):
+        self.cursor.execute("""
+            SELECT id FROM sizes
+            WHERE size_value = %s
+        """, (size_value,))
+
+        result = self.cursor.fetchone()
+
+        return result[0] if result else None
 # ================== БОТ ==================
 
 
@@ -250,7 +260,13 @@ def input_bulk_sizes(message, store_id, shoe_id):
 
             size = float(size_str.replace(',', '.'))  # поддержка 39,5
             qty = int(qty_str)
-            db.add_delivery(shoe_id, size, store_id, qty)
+            size_id = db.get_size_id(size)
+
+            if not size_id:
+                bot.send_message(message.chat.id, f"Размер {size} не найден ❌")
+                return
+
+            db.add_delivery(shoe_id, size_id, store_id, qty)
             success += 1
         except:
             continue
