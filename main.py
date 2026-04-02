@@ -206,8 +206,7 @@ def stock(message):
 if __name__ == "__main__":
     print("🚀 Бот запущен...")
 
-# веб-сервер для Render
-threading.Thread(target=run_web).start()
+    # ✅ всё должно быть ВНУТРИ if
+    threading.Thread(target=run_web).start()
 
-# запуск бота
-bot.infinity_polling()
+    bot.infinity_polling()
