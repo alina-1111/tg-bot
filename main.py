@@ -452,7 +452,30 @@ def show_by_date(message):
 # ================== ЗАПУСК ==================
 
 
-if __name__ == "__main__":
-    print("🚀 Бот запущен")
+from flask import Flask
+import threading
+import time
+
+bot = telebot.TeleBot("8380279768:AAEPKZUoqBB78R8eH-sfXBlJuCLszv2F5Jc")
+app = Flask(__name__)
+
+# ---- ФЛАСК ДЛЯ RENDER ----
+@app.route('/')
+def home():
+    return "ok"
+
+# ---- ЗАПУСК БОТА ----
+def run_bot():
+    print("🤖 Бот стартует")
+
     bot.remove_webhook()
+    time.sleep(2)
+
     bot.infinity_polling(skip_pending=True)
+
+# ---- СТАРТ ----
+if __name__ == "__main__":
+    threading.Thread(target=run_bot).start()
+
+    print("🌐 Flask запущен")
+    app.run(host="0.0.0.0", port=10000)
