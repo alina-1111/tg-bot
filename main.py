@@ -84,23 +84,37 @@ class DatabaseManager:
         return self.cursor.fetchall()
 
     def get_size_id(self, size_value):
-        self.cursor.execute("""
-            SELECT id FROM sizes
-            WHERE size_value = %s
-        """, (size_value,))
-
-        result = self.cursor.fetchone()
-
-        return result[0] if result else None
-
-    def get_deliveries_full(self):
         try:
-            self.conn.rollback()  # 🔥 ВАЖНО
+            self.conn.rollback()  # 🔥
 
             self.cursor.execute("""
+                SELECT id FROM sizes
+                WHERE size_value = %s
+            """, (size_value,))
+
+            result = self.cursor.fetchone()
+            return result[0] if result else None
+
+        except Exception as e:
+            print("Ошибка размера:", e)
+            self.conn.rollback()
+            return None
+
+    def safe_execute(self, query, params=None):
+        try:
+            self.conn.rollback()
+            self.cursor.execute(query, params or ())
+            return self.cursor.fetchall()
+        except Exception as e:
+            print("SQL ошибка:", e)
+            self.conn.rollback()
+            return []
+
+    def get_deliveries_full(self):
+        return self.safe_execute("""
             SELECT 
                 d.id,
-                s.name AS store,
+                s.name,
                 sh.brand,
                 sh.category,
                 sh.name,
@@ -113,19 +127,10 @@ class DatabaseManager:
             JOIN sizes sz ON d.size_id = sz.id
             ORDER BY d.created_at DESC
             LIMIT 10
-            """)
-
-            return self.cursor.fetchall()
-
-        except Exception as e:
-            print("Ошибка get_deliveries_full:", e)
-            return []
+        """)
 
     def get_deliveries_by_store(self, store_id):
-        try:
-            self.conn.rollback()
-
-            self.cursor.execute("""
+        return self.safe_execute("""
             SELECT 
                 s.name, sh.brand, sh.category, sh.name,
                 sz.size_value, d.quantity, d.created_at
@@ -135,13 +140,7 @@ class DatabaseManager:
             JOIN sizes sz ON d.size_id = sz.id
             WHERE s.id = %s
             ORDER BY d.created_at DESC
-            """, (store_id,))
-
-            return self.cursor.fetchall()
-
-        except Exception as e:
-            print("Ошибка:", e)
-            return []
+        """, (store_id,))
 
 # ================== БОТ ==================
 
@@ -443,30 +442,38 @@ def filter_date(message):
 def show_by_date(message):
     date = message.text
 
-    db.cursor.execute("""
-    SELECT s.name, sh.brand, sh.category, sh.name,
-           sz.size_value, d.quantity
-    FROM deliveries d
-    JOIN stores s ON d.store_id = s.id
-    JOIN shoes sh ON d.shoe_id = sh.id
-    JOIN sizes sz ON d.size_id = sz.id
-    WHERE DATE(d.created_at) = %s
-    """, (date,))
+    try:
+        db.conn.rollback()  # 🔥 СБРОС
 
-    rows = db.cursor.fetchall()
+        rows = db.safe_execute("""
+            SELECT s.name, sh.brand, sh.category, sh.name,
+                   sz.size_value, d.quantity
+            FROM deliveries d
+            JOIN stores s ON d.store_id = s.id
+            JOIN shoes sh ON d.shoe_id = sh.id
+            JOIN sizes sz ON d.size_id = sz.id
+            WHERE DATE(d.created_at) = %s
+        """, (date,))
 
-    text = f"📅 Поступления за {date}:\n\n"
+        rows = db.cursor.fetchall()
 
-    for r in rows:
-        text += f"{r[0]} | {r[1]} {r[3]} | {r[4]} | {r[5]}\n"
+        text = f"📅 Поступления за {date}:\n\n"
 
-    bot.send_message(message.chat.id, text)
+        for r in rows:
+            text += f"{r[0]} | {r[1]} {r[3]} | {r[4]} | {r[5]}\n"
+
+        bot.send_message(message.chat.id, text)
+
+    except Exception as e:
+        print("Ошибка даты:", e)
+        db.conn.rollback()  # 🔥 ВАЖНО
+        bot.send_message(message.chat.id, "Ошибка ❌ Проверь формат даты")
 # ================== ЗАПУСК ==================
 
 
 if __name__ == "__main__":
     print("🚀 Бот запущен...")
-    
+
     bot.remove_webhook()  # 🔥 обязательно
 
     threading.Thread(target=run_web).start()
