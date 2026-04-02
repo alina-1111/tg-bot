@@ -2,23 +2,6 @@ import telebot
 from telebot import types
 import psycopg2
 import os
-import threading
-from flask import Flask
-
-# ================== WEB (ДЛЯ RENDER) ==================
-
-app = Flask(__name__)
-
-
-@app.route("/")
-def home():
-    return "Bot is running!"
-
-
-def run_web():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
-
 # ================== БАЗА ДАННЫХ ==================
 
 
@@ -472,11 +455,14 @@ def show_by_date(message):
 if __name__ == "__main__":
     import time
 
-    print("🚀 Бот запущен...")
+    while True:
+        try:
+            print("🚀 Бот запускается...")
+            bot.remove_webhook()
+            time.sleep(2)
 
-    bot.remove_webhook()
-    time.sleep(2)  # 🔥 важно
+            bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
 
-    print("🔥 polling стартует")
-
-    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
+        except Exception as e:
+            print("Ошибка polling:", e)
+            time.sleep(5)
