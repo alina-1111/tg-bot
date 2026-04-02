@@ -168,11 +168,15 @@ def add_delivery(message):
     stores = db.get_stores()
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for s in stores:
-        markup.add(f"{s[0]} | {s[1]}")
+
+    # сохраняем соответствие name -> id
+    store_dict = {s[1]: s[0] for s in stores}
+
+    for name in store_dict.keys():
+        markup.add(name)
 
     msg = bot.send_message(message.chat.id, "Выбери магазин:", reply_markup=markup)
-    bot.register_next_step_handler(msg, select_store_delivery)
+    bot.register_next_step_handler(msg, select_store_delivery, store_dict)
 
 
 @bot.message_handler(commands=['check'])
@@ -194,70 +198,68 @@ def check_db(message):
 
 
 # ================== ВЫБОР МАГАЗИНА ==================
-def select_store_delivery(message):
-    try:
-        store_id = int(message.text.split('|')[0])
-    except:
-        bot.send_message(message.chat.id, "Ошибка выбора")
+def select_store_delivery(message, store_dict):
+    if message.text not in store_dict:
+        bot.send_message(message.chat.id, "Выбери из списка")
         return
 
+    store_id = store_dict[message.text]
+
+    # ❗ убираем клавиатуру
+    bot.send_message(message.chat.id, "Ок", reply_markup=types.ReplyKeyboardRemove())
+
     models = db.get_models()
+    model_dict = {m[1]: m[0] for m in models}
 
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    for m in models[:20]:
-        markup.add(f"{m[0]} | {m[1]}")
+    for name in list(model_dict.keys())[:20]:
+        markup.add(name)
 
     msg = bot.send_message(message.chat.id, "Выбери модель:", reply_markup=markup)
-    bot.register_next_step_handler(msg, select_model_delivery, store_id)
+    bot.register_next_step_handler(msg, select_model_delivery, store_id, model_dict)
 
 
 # ================== ВЫБОР МОДЕЛИ ==================
-def select_model_delivery(message, store_id):
-    try:
-        shoe_id = int(message.text.split('|')[0])
-    except:
-        bot.send_message(message.chat.id, "Ошибка выбора")
+def select_model_delivery(message, store_id, model_dict):
+    if message.text not in model_dict:
+        bot.send_message(message.chat.id, "Выбери из списка")
         return
 
-    msg = bot.send_message(message.chat.id, "Введите размер:")
-    bot.register_next_step_handler(msg, input_size_delivery, store_id, shoe_id)
+    shoe_id = model_dict[message.text]
+
+    # ❗ убираем клавиатуру
+    bot.send_message(message.chat.id, "Ок", reply_markup=types.ReplyKeyboardRemove())
+
+    msg = bot.send_message(
+        message.chat.id,
+        "Введи размеры и количество:\n\nПример:\n40 5\n41 3\n42 2"
+    )
+
+    bot.register_next_step_handler(msg, input_bulk_sizes, store_id, shoe_id)
 
 
-# ================== ВЫБОР РАЗМЕРА ==================
-def input_size_delivery(message, store_id, shoe_id):
-    if not message.text.isdigit():
-        bot.send_message(message.chat.id, "Введите число")
-        return
+# ================== ВВОД РАЗМЕРА И КОЛИЧЕСТВА ==================
+def input_bulk_sizes(message, store_id, shoe_id):
+    lines = message.text.split("\n")
 
-    size = int(message.text)
+    success = 0
 
-    msg = bot.send_message(message.chat.id, "Введите количество:")
-    bot.register_next_step_handler(msg, input_quantity_delivery, store_id, shoe_id, size)
+    for line in lines:
+        try:
+            size, qty = map(int, line.split())
+            db.add_delivery(shoe_id, size, store_id, qty)
+            success += 1
+        except:
+            continue
 
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    markup.add("Добавить ещё", "В меню")
 
-# ================== КОЛИЧЕСТВО + СОХРАНЕНИЕ ==================
-def input_quantity_delivery(message, store_id, shoe_id, size):
-    if not message.text.isdigit():
-        bot.send_message(message.chat.id, "Введите число")
-        return
-
-    qty = int(message.text)
-
-    try:
-        db.add_delivery(shoe_id, size, store_id, qty)
-
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add("Добавить ещё", "В меню")
-
-        bot.send_message(
-            message.chat.id,
-            "✅ Поступление добавлено",
-            reply_markup=markup
-        )
-
-    except Exception as e:
-        print(e)
-        bot.send_message(message.chat.id, "Ошибка ❌")
+    bot.send_message(
+        message.chat.id,
+        f"✅ Добавлено записей: {success}",
+        reply_markup=markup
+    )
 
 
 # ================== ДОБАВИТЬ ЕЩЕ ==================
