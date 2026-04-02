@@ -474,8 +474,8 @@ def show_by_date(message):
 if __name__ == "__main__":
     print("🚀 Бот запущен...")
 
-    bot.remove_webhook()  # 🔥 обязательно
+    bot.remove_webhook()
 
-    threading.Thread(target=run_web, daemon=True).start()
+    print("🔥 polling стартует")
 
-    bot.infinity_polling()
+    bot.infinity_polling(skip_pending=True)
