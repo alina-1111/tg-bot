@@ -35,7 +35,8 @@ class DatabaseManager:
             self.cursor = self.conn.cursor()
             print("✅ Подключение к БД успешно")
         except Exception as e:
-            print("❌ Ошибка подключения к БД:", e)
+            print(e)
+            self.conn.rollback()  # 🔥 ВАЖНО
 
     def get_models(self):
         self.cursor.execute("SELECT id, name FROM shoes")
