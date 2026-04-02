@@ -175,6 +175,24 @@ def add_delivery(message):
     bot.register_next_step_handler(msg, select_store_delivery)
 
 
+@bot.message_handler(commands=['check'])
+def check_db(message):
+    rows = db.cursor.execute("""
+        SELECT shoe_id, size_id, store_id, quantity
+        FROM deliveries
+        ORDER BY id DESC
+        LIMIT 5
+    """)
+
+    rows = db.cursor.fetchall()
+
+    text = "Последние поступления:\n\n"
+    for r in rows:
+        text += f"Модель {r[0]}, размер {r[1]}, магазин {r[2]}: {r[3]}\n"
+
+    bot.send_message(message.chat.id, text)
+
+
 # ================== ВЫБОР МАГАЗИНА ==================
 def select_store_delivery(message):
     try:
