@@ -476,6 +476,6 @@ if __name__ == "__main__":
 
     bot.remove_webhook()  # 🔥 обязательно
 
-    threading.Thread(target=run_web).start()
+    threading.Thread(target=run_web, daemon=True).start()
 
     bot.infinity_polling()
