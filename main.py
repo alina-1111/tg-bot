@@ -109,7 +109,7 @@ class DatabaseManager:
         JOIN shoes sh ON d.shoe_id = sh.id
         JOIN sizes sz ON d.size_id = sz.id
         ORDER BY d.created_at DESC
-        LIMIT 20
+        LIMIT 10
         """)
         return self.cursor.fetchall()
 
@@ -223,24 +223,6 @@ def add_delivery(message):
 
     msg = bot.send_message(message.chat.id, "Выбери магазин:", reply_markup=markup)
     bot.register_next_step_handler(msg, select_store_delivery, store_dict)
-
-
-@bot.message_handler(commands=['check'])
-def check_db(message):
-    rows = db.cursor.execute("""
-        SELECT shoe_id, size_id, store_id, quantity
-        FROM deliveries
-        ORDER BY id DESC
-        LIMIT 5
-    """)
-
-    rows = db.cursor.fetchall()
-
-    text = "Последние поступления:\n\n"
-    for r in rows:
-        text += f"Модель {r[0]}, размер {r[1]}, магазин {r[2]}: {r[3]}\n"
-
-    bot.send_message(message.chat.id, text)
 
 
 # ================== ВЫБОР МАГАЗИНА ==================
