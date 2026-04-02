@@ -124,7 +124,7 @@ class DatabaseManager:
             FROM deliveries d
             JOIN stores s ON d.store_id = s.id
             JOIN shoes sh ON d.shoe_id = sh.id
-            JOIN sizes sz ON d.size_id = sz.id
+            LEFT JOIN sizes sz ON d.size_id = sz.id
             ORDER BY d.created_at DESC
             LIMIT 10
         """)
@@ -455,8 +455,6 @@ def show_by_date(message):
             WHERE DATE(d.created_at) = %s
         """, (date,))
 
-        rows = db.cursor.fetchall()
-
         text = f"📅 Поступления за {date}:\n\n"
 
         for r in rows:
@@ -472,10 +470,13 @@ def show_by_date(message):
 
 
 if __name__ == "__main__":
+    import time
+
     print("🚀 Бот запущен...")
 
     bot.remove_webhook()
+    time.sleep(2)  # 🔥 важно
 
     print("🔥 polling стартует")
 
-    bot.infinity_polling(skip_pending=True)
+    bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
