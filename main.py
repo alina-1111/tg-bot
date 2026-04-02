@@ -79,6 +79,9 @@ class DatabaseManager:
         self.cursor.close()
         self.conn.close()
 
+    def get_stores(self):
+        self.cursor.execute("SELECT id, name FROM stores")
+        return self.cursor.fetchall()
 # ================== БОТ ==================
 
 
@@ -162,11 +165,87 @@ def add_delivery(message):
     if message.from_user.id != ADMIN_ID:
         return
 
-    msg = bot.send_message(
-        message.chat.id,
-        "Введите: shoe_id size_id store_id quantity"
-    )
-    bot.register_next_step_handler(msg, process_delivery)
+    stores = db.get_stores()
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for s in stores:
+        markup.add(f"{s[0]} | {s[1]}")
+
+    msg = bot.send_message(message.chat.id, "Выбери магазин:", reply_markup=markup)
+    bot.register_next_step_handler(msg, select_store_delivery)
+
+
+# ================== ВЫБОР МАГАЗИНА ==================
+def select_store_delivery(message):
+    try:
+        store_id = int(message.text.split('|')[0])
+    except:
+        bot.send_message(message.chat.id, "Ошибка выбора")
+        return
+
+    models = db.get_models()
+
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    for m in models[:20]:
+        markup.add(f"{m[0]} | {m[1]}")
+
+    msg = bot.send_message(message.chat.id, "Выбери модель:", reply_markup=markup)
+    bot.register_next_step_handler(msg, select_model_delivery, store_id)
+
+
+# ================== ВЫБОР МОДЕЛИ ==================
+def select_model_delivery(message, store_id):
+    try:
+        shoe_id = int(message.text.split('|')[0])
+    except:
+        bot.send_message(message.chat.id, "Ошибка выбора")
+        return
+
+    msg = bot.send_message(message.chat.id, "Введите размер:")
+    bot.register_next_step_handler(msg, input_size_delivery, store_id, shoe_id)
+
+
+# ================== ВЫБОР РАЗМЕРА ==================
+def input_size_delivery(message, store_id, shoe_id):
+    if not message.text.isdigit():
+        bot.send_message(message.chat.id, "Введите число")
+        return
+
+    size = int(message.text)
+
+    msg = bot.send_message(message.chat.id, "Введите количество:")
+    bot.register_next_step_handler(msg, input_quantity_delivery, store_id, shoe_id, size)
+
+
+# ================== КОЛИЧЕСТВО + СОХРАНЕНИЕ ==================
+def input_quantity_delivery(message, store_id, shoe_id, size):
+    if not message.text.isdigit():
+        bot.send_message(message.chat.id, "Введите число")
+        return
+
+    qty = int(message.text)
+
+    try:
+        db.add_delivery(shoe_id, size, store_id, qty)
+
+        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add("Добавить ещё", "В меню")
+
+        bot.send_message(
+            message.chat.id,
+            "✅ Поступление добавлено",
+            reply_markup=markup
+        )
+
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, "Ошибка ❌")
+
+
+# ================== ДОБАВИТЬ ЕЩЕ ==================
+@bot.message_handler(func=lambda m: m.text == "Добавить ещё")
+def add_more(message):
+    add_delivery(message)
 
 
 def process_delivery(message):
