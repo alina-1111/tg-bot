@@ -35,8 +35,7 @@ class DatabaseManager:
             self.cursor = self.conn.cursor()
             print("✅ Подключение к БД успешно")
         except Exception as e:
-            print(e)
-            self.conn.rollback()  # 🔥 ВАЖНО
+            print("❌ Ошибка подключения к БД:", e)
 
     def get_models(self):
         self.cursor.execute("SELECT id, name FROM shoes")
@@ -51,18 +50,26 @@ class DatabaseManager:
         return self.cursor.fetchone()
 
     def add_delivery(self, shoe_id, size_id, store_id, qty):
-        self.cursor.execute("""
-        INSERT INTO deliveries (shoe_id, size_id, store_id, quantity)
-        VALUES (%s, %s, %s, %s)
-        """, (shoe_id, size_id, store_id, qty))
-        self.conn.commit()
+        try:
+            self.cursor.execute("""
+            INSERT INTO deliveries (shoe_id, size_id, store_id, quantity)
+            VALUES (%s, %s, %s, %s)
+            """, (shoe_id, size_id, store_id, qty))
+            self.conn.commit()
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
 
     def add_sale(self, shoe_id, size_id, store_id, qty):
-        self.cursor.execute("""
-        INSERT INTO sales (shoe_id, size_id, store_id, quantity)
-        VALUES (%s, %s, %s, %s)
-        """, (shoe_id, size_id, store_id, qty))
-        self.conn.commit()
+        try:
+            self.cursor.execute("""
+            INSERT INTO sales (shoe_id, size_id, store_id, quantity)
+            VALUES (%s, %s, %s, %s)
+            """, (shoe_id, size_id, store_id, qty))
+            self.conn.commit()
+        except Exception as e:
+            print(e)
+            self.conn.rollback()
 
     def get_stock(self):
         self.cursor.execute("SELECT * FROM current_stock LIMIT 20")
@@ -186,9 +193,9 @@ def process_sale(message):
         shoe_id, size_id, store_id, qty = map(int, message.text.split())
         db.add_sale(shoe_id, size_id, store_id, qty)
         bot.send_message(message.chat.id, "✅ Продажа добавлена")
-    except Exception as e:(
-        print(e))
-    bot.send_message(message.chat.id, "Ошибка ❌")
+    except Exception as e:
+        print(e)
+        bot.send_message(message.chat.id, "Ошибка ❌")
 
 
 @bot.message_handler(func=lambda m: m.text == 'Смотреть остатки')
@@ -199,7 +206,8 @@ def stock(message):
     text = "Остатки:\n\n"
     for r in rows:
         text += f"Модель {r[0]}, размер {r[1]}, магазин {r[2]}: {r[3]}\n"
-        bot.send_message(message.chat.id, text)
+
+    bot.send_message(message.chat.id, text)
 
 # ================== ЗАПУСК ==================
 
