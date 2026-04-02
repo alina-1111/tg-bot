@@ -94,38 +94,54 @@ class DatabaseManager:
         return result[0] if result else None
 
     def get_deliveries_full(self):
-        self.cursor.execute("""
-        SELECT 
-            d.id,
-            s.name AS store,
-            sh.brand,
-            sh.category,
-            sh.name,
-            sz.size_value,
-            d.quantity,
-            d.created_at
-        FROM deliveries d
-        JOIN stores s ON d.store_id = s.id
-        JOIN shoes sh ON d.shoe_id = sh.id
-        JOIN sizes sz ON d.size_id = sz.id
-        ORDER BY d.created_at DESC
-        LIMIT 10
-        """)
-        return self.cursor.fetchall()
+        try:
+            self.conn.rollback()  # 🔥 ВАЖНО
+
+            self.cursor.execute("""
+            SELECT 
+                d.id,
+                s.name AS store,
+                sh.brand,
+                sh.category,
+                sh.name,
+                sz.size_value,
+                d.quantity,
+                d.created_at
+            FROM deliveries d
+            JOIN stores s ON d.store_id = s.id
+            JOIN shoes sh ON d.shoe_id = sh.id
+            JOIN sizes sz ON d.size_id = sz.id
+            ORDER BY d.created_at DESC
+            LIMIT 10
+            """)
+
+            return self.cursor.fetchall()
+
+        except Exception as e:
+            print("Ошибка get_deliveries_full:", e)
+            return []
 
     def get_deliveries_by_store(self, store_id):
-        self.cursor.execute("""
-        SELECT 
-            s.name, sh.brand, sh.category, sh.name,
-            sz.size_value, d.quantity, d.created_at
-        FROM deliveries d
-        JOIN stores s ON d.store_id = s.id
-        JOIN shoes sh ON d.shoe_id = sh.id
-        JOIN sizes sz ON d.size_id = sz.id
-        WHERE s.id = %s
-        ORDER BY d.created_at DESC
-        """, (store_id,))
-        return self.cursor.fetchall()
+        try:
+            self.conn.rollback()
+
+            self.cursor.execute("""
+            SELECT 
+                s.name, sh.brand, sh.category, sh.name,
+                sz.size_value, d.quantity, d.created_at
+            FROM deliveries d
+            JOIN stores s ON d.store_id = s.id
+            JOIN shoes sh ON d.shoe_id = sh.id
+            JOIN sizes sz ON d.size_id = sz.id
+            WHERE s.id = %s
+            ORDER BY d.created_at DESC
+            """, (store_id,))
+
+            return self.cursor.fetchall()
+
+        except Exception as e:
+            print("Ошибка:", e)
+            return []
 
 # ================== БОТ ==================
 
@@ -450,7 +466,7 @@ def show_by_date(message):
 
 if __name__ == "__main__":
     print("🚀 Бот запущен...")
-
+    
     bot.remove_webhook()  # 🔥 обязательно
 
     threading.Thread(target=run_web).start()
