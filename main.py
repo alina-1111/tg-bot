@@ -246,7 +246,10 @@ def input_bulk_sizes(message, store_id, shoe_id):
 
     for line in lines:
         try:
-            size, qty = map(int, line.split())
+            size_str, qty_str = line.split()
+
+            size = float(size_str.replace(',', '.'))  # поддержка 39,5
+            qty = int(qty_str)
             db.add_delivery(shoe_id, size, store_id, qty)
             success += 1
         except:
