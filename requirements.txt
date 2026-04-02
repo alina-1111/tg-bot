@@ -1,3 +1,2 @@
 pyTelegramBotAPI
 psycopg2-binary
-flask
