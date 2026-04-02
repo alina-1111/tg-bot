@@ -359,14 +359,14 @@ def view_deliveries(message):
     bot.send_message(message.chat.id, "Выбери фильтр:", reply_markup=markup)
 
 
-@bot.message_handler(func=lambda m: m.text == 'Последние')
+@bot.message_handler(func=lambda m: m.text and m.text.strip() == 'Последние')
 def show_last_deliveries(message):
     rows = db.get_deliveries_full()
 
     text = "📦 Последние поступления:\n\n"
 
     for r in rows:
-        text += (
+        part = (
             f"🏪 {r[1]}\n"
             f"👟 {r[2]} | {r[3]} | {r[4]}\n"
             f"📏 Размер: {r[5]}\n"
@@ -374,7 +374,15 @@ def show_last_deliveries(message):
             f"📅 {r[7]}\n\n"
         )
 
-    bot.send_message(message.chat.id, text)
+        # 🔥 если превышает лимит — отправляем кусок
+        if len(text) + len(part) > 4000:
+            bot.send_message(message.chat.id, text)
+            text = ""
+
+        text += part
+
+    if text:
+        bot.send_message(message.chat.id, text)
 
 
 @bot.message_handler(func=lambda m: m.text == 'По магазину')
