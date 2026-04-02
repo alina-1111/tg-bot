@@ -451,40 +451,8 @@ def show_by_date(message):
         bot.send_message(message.chat.id, "Ошибка ❌ Проверь формат даты")
 # ================== ЗАПУСК ==================
 
-from flask import Flask
-import threading
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "OK"
-
-
-def run_bot():
-    import time
-
-    print("🤖 Бот стартует...")
-
-    while True:
-        try:
-            bot.remove_webhook()
-            time.sleep(2)
-
-            try:
-                bot.get_updates(offset=-1)
-            except:
-                pass
-
-            bot.infinity_polling(skip_pending=True, timeout=60, long_polling_timeout=60)
-
-        except Exception as e:
-            print("Ошибка polling:", e)
-            time.sleep(5)
-
 
 if __name__ == "__main__":
-    threading.Thread(target=run_bot).start()
-
-    print("🌐 Flask запущен...")
-    app.run(host="0.0.0.0", port=10000)
+    print("🚀 Бот запущен")
+    bot.remove_webhook()
+    bot.infinity_polling(skip_pending=True)
